@@ -51,6 +51,7 @@ STATUS_KSID_IN_USE = 5
 STATUS_TIMEOUT = 6
 STATUS_QOS_NOT_MET = 7
 STATUS_METADATA_SIZE_INSUFFICIENT = 8
+STATUS_PEER_NOT_CONNECTED_CLOSE = 9
 
 class KnownException(Exception):
     """Custom exception class for known errors."""

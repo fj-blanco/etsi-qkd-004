@@ -167,3 +167,82 @@ class TestQKDClient:
         logging.info(
             f"Key synchronization verified - both clients received identical key material: {alice_key.hex()[:16]}..."
         )
+    def test_case1_ksid_sync_2(caplog):
+        """
+        Test Case 1 KSID synchronization as described in ETSI GS QKD 004.
+        
+        Alice calls OPEN_CONNECT with a null KSID
+        The key manager generates a new KSID
+        Alice sends the KSID to Bob
+        Bob calls OPEN_CONNECT with the received KSID
+        Alice and Bob can continue using keys with the same KSID
+        """
+        caplog.set_level(logging.INFO)
+        
+        # First client (Alice) gets a KSID from the server (null KSID case)
+        client_alice = QKDClient()
+        client_alice.connect(SERVER_ADDRESS, SERVER_PORT)
+        open_status_alice, alice_ksid, alice_qos = client_alice.open_connect(
+            f'client://alice', 
+            f'server://{SERVER_ADDRESS}'
+        )
+        
+        # Check Alice's connection was successful
+        assert open_status_alice in (STATUS_SUCCESS, STATUS_QOS_NOT_MET), \
+            f"OPEN_CONNECT failed for Alice with status {open_status_alice}"
+        
+        # Alice gets key at index 0
+        alice_index, alice_key, alice_metadata, get_status_alice = client_alice.get_key(0, 1024)
+        assert get_status_alice == STATUS_SUCCESS, \
+            f"GET_KEY failed for Alice with status {get_status_alice}"
+        
+        # Check first key details
+        assert alice_index == 0, f"Expected index 0, got {alice_index}"
+        assert alice_key is not None, "Alice's key should not be None"
+        assert alice_metadata, "Alice's metadata should not be empty"
+        
+        logging.info(f"Alice's KSID: {alice_ksid}")
+        logging.info(f"Alice's key (first 16 bytes): {alice_key.hex()[:32]}...")
+        
+        # Close Alice's connection
+        close_status_alice = client_alice.close()
+        assert close_status_alice == STATUS_SUCCESS, \
+            f"CLOSE failed for Alice with status {close_status_alice}"
+        
+        # Second client (Bob) uses the same KSID
+        client_bob = QKDClient()
+        client_bob.connect(SERVER_ADDRESS, SERVER_PORT)
+        
+        # Set the KSID that Bob "received" from Alice
+        client_bob.key_stream_id = alice_ksid
+        
+        # Bob opens connection with the same KSID
+        open_status_bob, bob_ksid, bob_qos = client_bob.open_connect(
+            f'client://bob', 
+            f'server://{SERVER_ADDRESS}'
+        )
+        
+        # Check Bob's connection was successful
+        assert open_status_bob in (STATUS_SUCCESS, STATUS_QOS_NOT_MET), \
+            f"OPEN_CONNECT failed for Bob with status {open_status_bob}"
+        
+        # Bob gets key at the same index to verify key synchronization
+        bob_index, bob_key, bob_metadata, get_status_bob = client_bob.get_key(0, 1024)
+        assert get_status_bob == STATUS_SUCCESS, \
+            f"GET_KEY failed for Bob with status {get_status_bob}"
+        
+        # Close Bob's connection
+        close_status_bob = client_bob.close()
+        assert close_status_bob == STATUS_SUCCESS, \
+            f"CLOSE failed for Bob with status {close_status_bob}"
+        
+        # Log Bob's key details
+        logging.info(f"Bob's KSID: {bob_ksid}")
+        logging.info(f"Bob's key (first 16 bytes): {bob_key.hex()[:32]}...")
+        
+        # Verify that both clients got the same key when using the same KSID and index
+        assert alice_key == bob_key, \
+            f"Keys do not match for the same KSID and index."
+        
+        # Log success
+        logging.info("KSID synchronization successful - both clients received identical key material")

@@ -4,7 +4,9 @@ FROM python:3.9
 WORKDIR /app
 
 # Copy server files
-COPY server.py . 
+COPY server.py .
+COPY key_manager/key_manager.py key_manager/
+COPY key_manager/__init__.py key_manager/
 
 # Expose the server port
 EXPOSE 25575
