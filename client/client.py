@@ -77,7 +77,7 @@ class QKDClient:
     def connect(self, server_ip, server_port):
         """Establish a secure connection to the server."""
         raw_sock = socket.socket(socket.AF_INET)
-        raw_sock.settimeout(5)
+        raw_sock.settimeout(10)
         if SERVER_CERT_PEM and CLIENT_CERT_KEY and CLIENT_CERT_PEM:
             context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
             context.load_cert_chain(certfile=CLIENT_CERT_PEM, keyfile=CLIENT_CERT_KEY)
@@ -300,7 +300,11 @@ class QKDClient:
             metadata_start = metadata_size_end
             metadata_end = metadata_start + metadata_size
             metadata_bytes = payload[metadata_start:metadata_end]
-            metadata = metadata_bytes.decode()
+            try:
+                metadata = metadata_bytes.decode()
+            except UnicodeDecodeError:
+                # Fallback to a safe representation of binary data
+                metadata = f"<binary data of length {len(metadata_bytes)}>"
 
             # Logging for index and metadata_size
             logging.debug(f"Index received by client: {index}")
